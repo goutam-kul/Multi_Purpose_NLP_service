@@ -1,0 +1,23 @@
+# API
+fastapi
+uvicorn
+
+# NLP Libraries
+transformers
+torch
+numpy
+pandas
+scikit-learn
+
+# Utilities
+python-dotenv
+pydantic
+pytest
+
+# Ollama
+ollama
+
+# Google drive
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
