@@ -1,11 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 
 class TextInput(BaseModel):
     text: str
     task: str
-    options: Optional[dict] = None
+    options: Optional[Dict] = None
 
     class config:
         jason_schema_extra = {
@@ -15,3 +15,32 @@ class TextInput(BaseModel):
                 "options": {"return_all_scores": True}
             }
         }
+
+
+# Text-Summarization
+class SummarizationRequest(BaseModel):
+    text: str
+    options: Optional[Dict[str, Any]] = None
+
+class SummarizationResponse(BaseModel):
+    original_text: str
+    summary: str
+    metadata: Dict[str, Any]
+    key_points: List[str]
+
+
+# Text-Classification
+class CategoryScore(BaseModel):
+    category: str
+    confidence: float
+
+class TextClassificationRequest(BaseModel):
+    text: str
+    options: Optional[Dict[str, Any]] = None
+
+class TextClassificationResponse(BaseModel):
+    text: str
+    primary_category: str
+    confidence: float
+    all_categories: List[CategoryScore]
+    explanation: str
