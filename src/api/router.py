@@ -1,12 +1,18 @@
 from fastapi import APIRouter, HTTPException
 from src.api.models import TextInput
+from src.api.models import SummarizationRequest, SummarizationResponse
+from src.api.models import TextClassificationRequest, TextClassificationResponse
 from src.models.sentiment_analyzer import SentimentAnalyzer
-from src.models.ner_analyzer import NERAnalayzer
+from src.models.ner_analyzer import NERAnalyzer
+from src.models.text_summarizer import TextSummarizer
+from src.models.text_classifier import TextClassifier
 from typing import Dict
 
 router = APIRouter()
 sentiment_analyzer = SentimentAnalyzer()
-ner_analyzer = NERAnalayzer()
+ner_analyzer = NERAnalyzer("ner_tinyllama_lora")
+summarizer = TextSummarizer()
+classifier = TextClassifier()
 
 @router.get("/health")
 async def health_check():
@@ -36,3 +42,20 @@ async def analyze_text(input_data: TextInput) -> Dict:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+
+@router.post("/summarize", response_model=SummarizationResponse)
+async def summarize_text(request: SummarizationRequest):
+    try:
+        result = summarizer.summarize(request.text, request.options)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.post("/classify", response_model=TextClassificationResponse)
+async def classify_text(request: TextClassificationRequest):
+    try:
+        result = classifier.classify(request.text, request.options)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

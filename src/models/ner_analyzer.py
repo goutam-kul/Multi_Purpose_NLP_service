@@ -1,69 +1,93 @@
-from ollama import Client
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel, PeftConfig
+import torch
 import json
+import re
 
-class NERAnalayzer:
-    def __init__(self):
-        self.client = Client(host="http://localhost:11434")
-        self.model = "phi3:latest"  
-
-    def analyze(self, text:str, options: dict = None) -> dict:
-        try:
-            prompt = f"""You are a Named Entity Recognition (NER) system. Indentify entities in the text and return ONLY a valid JSON boject.
-Format EXACTLY like this (including the curly braces):
-{{
-    "entities": [
-        {{
-            "text": "entity text",
-            "type": "PERSON/ORG/LOC/DATE/TIME/OTHER",
-            "start": start_index,
-            "end": end_index
-        }}]
-}}
-RULES:
-1. entity type must be one of: PERSON, ORG (organization), LOC(location), DATE, TIME or OTHER.
-2. start and end should be a character indices in the text.
-3. Return ONLY the JSON boject, nothing else.
-4. Include ALL entities found
-5. Ensure proper JSON formatting
-
-Text to analyze: "{text}"
-"""
-            response = self.client.generate(
-                model=self.model,
-                prompt=prompt,
-                stream=False
-            )
-
-            print("Raw Response:", response['response'])
-
-            try:
-                # Extract JSON object
-                raw_text = response['response']
-                start = raw_text.find('{')
-                end = raw_text.rfind('}') + 1
-
-                if start == -1 and end == 0:
-                    raise Exception("No JSON object found in response")
-                
-                json_str = raw_text[start:end]
-                result = json.loads(json_str)
-
-                # Validate the response
-                if not isinstance(result.get("entities"), list):
-                    raise ValueError("Response must contain 'entities' array")
-                
-                # Format the final response
-                analysis = {
-                    "text": text,
-                    "entities": result["entities"]
-                }
-
-                return analysis
+class NERAnalyzer:
+    def __init__(self, model_path: str = "./ner_tinyllama_lora"):
+        self.entity_types = {"PERSON": "PERSON", 
+                        "ORGANIZATION": "ORG", 
+                        "LOCATION": "LOC", 
+                        "MISCELLANEOUS": "OTHER"}
+        
+        # Load the tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            except json.JSONDecodeError as e:
-                print(f"JSON parsing error: {str(e)}")
-                print(f"Attempted to parse: {json_str}")
-                raise Exception("Failed to parse the model response as valid JSON")
+        # Load base model for CPU
+        base_model = AutoModelForCausalLM.from_pretrained(
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+            device_map="cpu",  # Explicitly set to CPU
+            trust_remote_code=True
+        )
+        
+        # Load the PEFT adapter
+        self.model = PeftModel.from_pretrained(
+            base_model,
+            model_path,
+            is_trainable=False
+        )
+        self.model.eval()
+
+    def _parse_model_output(self, output: str, original_text: str) -> list:
+        entities = []
+        pattern = r'\[(.*?): (.*?)\]'
+        matches = re.finditer(pattern, output)
+        
+        for match in matches:
+            entity_type, text = match.groups()
+            start = original_text.find(text)
+            if start != -1:
+                entities.append({
+                    "text": text,
+                    "type": self.entity_types.get(entity_type, "OTHER"),
+                    "start": start,
+                    "end": start + len(text)
+                })
+        return entities
+
+    def analyze(self, text: str, options: dict = None) -> dict:
+        try:
+            # Format the prompt according to model's training format
+            prompt = f"### Instruction: Identify and classify named entities in the following text.\nText: {text}\n### Response:"
+            
+            # Tokenize input
+            inputs = self.tokenizer(
+                prompt, 
+                return_tensors="pt", 
+                truncation=True
+            ).to(self.model.device)
+            
+            # Generate predictions
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=100,
+                temperature=0.1,
+                do_sample=False,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
+            )
+            
+            # Decode the model output
+            predicted_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Extract the response part after "### Response:"
+            response_start = predicted_text.find("### Response:")
+            if response_start != -1:
+                predicted_text = predicted_text[response_start + len("### Response:"):].strip()
+            
+            # Parse the output and get entities with positions
+            entities = self._parse_model_output(predicted_text, text)
+            
+            # Format the final response
+            analysis = {
+                "text": text,
+                "entities": entities
+            }
+            
+            return analysis
             
         except Exception as e:
             raise Exception(f"Error in the NER analysis: {str(e)}")
