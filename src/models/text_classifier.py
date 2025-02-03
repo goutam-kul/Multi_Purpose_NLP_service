@@ -46,28 +46,38 @@ Format EXACTLY like this (including the curly braces):
 }}
 
 RULES:
-1. Classify into these categories only: {categories_str}
-2. Return {multi_label_str}
-3. Confidence Scoring: 
+1. Classify the given text into these categories ONLY {categories}
+2. If classified category is found to be closely related use the category which is mentioned in {categories}
+3. NEVER create your own CATEGORY, ONLY use these mentioned: {categories} 
+4. Return {multi_label_str}
+5. Confidence Scoring: 
     - Main category: 0.7-0.9 confidence
     - Related categories: 0.4-0.8 confidence
     - Minimum difference between related categories: 0.1
     - Maximum difference between related categories: 0.3
     - NEVER use extreme splits (>0.5 difference)
 
-CONTEN RULES:
-1. Entertainment:
+CATEGORY MAPPING:
+- **Financial News (e.g., profits, earnings, stock market)** → "Business"
+- **Technology News (e.g., AI, platforms, software, digital systems)** → "Technology"
+- **Entertainment News (e.g., streaming, gaming, media)** → "Entertainment"
+    
+CONTENT RULES:
+1. **Entertainment**:
     - Media companies (e.g., Netflix, Disney)
     - Gaming and interactive content
-    - Content creation and disribution
-2. Technology:
+    - Content creation and distribution
+2. **Technology**:
     - Digital platforms
     - Gaming technology 
     - Interactive systems
-3. Business:
+3. **Business**:
     - Acquisitions and mergers
-    - Financial transactions
-    - Corporate startegy
+    - Financial transactions and reports
+    - Corporate strategy and performance
+    - Quarterly earnings and profits
+    - Revenue and market updates
+    - Stock market and investments
 
 EXAMPLE 1:
 Input: "Disney launches new streaming platform with AI recommendations"
@@ -81,6 +91,18 @@ Output: {{
     ],
     "explanation": "Primary focus is entertainment (streaming), with significant technology aspect (AI) and business implications"
 }} 
+
+EXAMPLE 2:
+Input: "Company's Q3 profit rises 15% to $1.2B!"
+Output: {{
+    "primary_category": "Business",
+    "confidence": 0.85,
+    "all_categories": [
+        {{"category": "Business", "confidence": 0.85}}
+    ],
+    "explanation": "Financial growth, earnings reports, and stock-related updates belong to the Business category"
+}}
+
 
 Text to classify: "{text}"
 """

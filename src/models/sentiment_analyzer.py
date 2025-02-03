@@ -1,13 +1,52 @@
 from ollama import Client
 import json
+from typing import Dict, Optional
+from src.exceptions.custom_exceptions import (
+    NLPServiceException,
+    ModelConnectionError,
+    InvalidModelResponseError,
+    ValidationError,
+    JSONParsingError
+)
+
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.client = Client(host="http://localhost:11434")
-        self.model = "llama3.2:3b"  
-        
-    def analyze(self, text: str, options: dict = None) -> dict:
         try:
+            self.client = Client(host="http://localhost:11434")
+            self.model = "llama3.2:3b"  
+        except Exception as e:
+            raise ModelConnectionError(f"Failed to initialize Ollama client: {str(e)}")
+        
+            
+    def _validate_input(self, text: str) -> None:
+        """Validate input text"""
+        if not text:  # Catches emtpy string
+            raise ValidationError("Input text cannot be empty")
+        if not isinstance(text, str):
+            raise ValidationError("Input must be a string")
+        if len(text.split()) == 0: # Catches whitespace "  "
+            raise ValidationError("Input text cannot be whitespaces only")
+        
+
+    def _validate_response(self, result: Dict) -> None:
+        """Validate model response"""
+        required_fields = ["sentiment", "confidence", "explanation"]
+        for field in required_fields:
+            if field not in result:
+                raise InvalidModelResponseError(f"Missing required field in model response: {field}")
+            
+        if result["sentiment"] not in ["POSITIVE", "NEGATIVE", "NEUTRAL"]:
+            raise InvalidModelResponseError(f"Invalid sentiment value: {result['sentiment']}")
+        
+        if not isinstance(result['confidence'], (int, float)) or not 0<= result['confidence'] <=1:
+            raise InvalidModelResponseError(f"Invalid confidence score : {result['confidence']}")
+        
+
+    def analyze(self, text: str, options: Optional[Dict] = None) -> dict:
+        try:
+            # Validate input 
+            self._validate_input(text=text)
             prompt = f"""You are a sentiment analyzer. Return ONLY a valid JSON object.
 Format EXACTLY like this (including the curly braces):
 {{
@@ -25,14 +64,15 @@ RULES:
 
 Analyze this text: "{text}"
 """
-            response = self.client.generate(
-                model=self.model,
-                prompt=prompt,
-                stream=False
-            )
-            
-            print("Raw Response:", response['response'])
-            
+            try:
+                response = self.client.generate(
+                    model=self.model,
+                    prompt=prompt,
+                    stream=False
+                )
+            except Exception as e:
+                raise ModelConnectionError(f"Failed to get model response: {str(e)}")
+                
             try:
                 # Extract JSON object
                 raw_text = response['response']
@@ -42,10 +82,13 @@ Analyze this text: "{text}"
                 end = raw_text.rfind('}') + 1
                 
                 if start == -1 or end == 0:
-                    raise Exception("No JSON object found in response")
+                    raise JSONParsingError("No JSON object found in response")
                 
                 json_str = raw_text[start:end]
                 result = json.loads(json_str)
+
+                # Validate the response
+                self._validate_response(result=result)
                 
                 # Validate the response
                 if result["sentiment"] not in ["POSITIVE", "NEGATIVE", "NEUTRAL"]:
@@ -65,9 +108,12 @@ Analyze this text: "{text}"
                 return analysis
                 
             except json.JSONDecodeError as e:
-                print(f"JSON parsing error: {e}")
-                print(f"Attempted to parse: {json_str}")
-                raise Exception("Failed to parse model response as valid JSON")
+                raise JSONParsingError(f"Failed to parse model response: {str(e)}")
             
         except Exception as e:
-            raise Exception(f"Error in sentiment analysis: {str(e)}")
+            # If it's our custom exception re-raise it
+            if isinstance(e, (ValidationError, ModelConnectionError,
+                              InvalidModelResponseError, JSONParsingError)):
+                raise 
+            # Otherwise wrap it in a general error
+            raise NLPServiceException(f"Unexpected error in sentiment analysis: {str(e)}")
