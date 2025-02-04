@@ -1,16 +1,20 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel, PeftConfig
-import torch
-import json
+import sys
 import re
+from src.cache.cache_manager import cache_response, CacheConfig
+from src.config.config import config
 
 class NERAnalyzer:
-    def __init__(self, model_path: str = "./ner_tinyllama_lora"):
+    def __init__(self, model_path: str = None):
         self.entity_types = {"PERSON": "PERSON", 
                         "ORGANIZATION": "ORG", 
                         "LOCATION": "LOC", 
                         "MISCELLANEOUS": "OTHER"}
         
+        # Use provided model path or config path
+        model_path = model_path or config.model_paths["ner"]
+
         # Load the tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         if self.tokenizer.pad_token is None:
@@ -48,6 +52,7 @@ class NERAnalyzer:
                 })
         return entities
 
+    @cache_response(prefix="ner", expire=CacheConfig.TEST_EXPIRE if "pytest" in sys.modules else CacheConfig.NER_EXPIRE)
     def analyze(self, text: str, options: dict = None) -> dict:
         try:
             # Format the prompt according to model's training format
@@ -65,7 +70,7 @@ class NERAnalyzer:
                 **inputs,
                 max_new_tokens=100,
                 temperature=0.1,
-                do_sample=False,
+                do_sample=True,
                 pad_token_id=self.tokenizer.pad_token_id,
                 eos_token_id=self.tokenizer.eos_token_id,
             )

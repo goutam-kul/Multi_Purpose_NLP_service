@@ -1,11 +1,16 @@
 from fastapi import FastAPI
-from api.router import router
+from src.api.router import router
+from src.exceptions.custom_exceptions import NLPServiceException
+from src.api.error_handler import nlp_exception_handler
 
 app = FastAPI(
     title="Multi-Purpose NLP service",
     description="A service that provides various NLP functionality",
     version="1.0.0"
 )
+
+# Register exception handler
+app.add_exception_handler(NLPServiceException, nlp_exception_handler)
 
 # Add router
 app.include_router(router=router, prefix="/api/v1")

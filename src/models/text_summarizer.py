@@ -1,11 +1,16 @@
 from ollama import Client
 import json
+import sys
+from src.cache.cache_manager import CacheConfig, cache_response
+from src.config.config import config
+
 
 class TextSummarizer:
     def __init__(self):
-        self.client = Client(host="http://localhost:11434")
-        self.model = "llama3.2:3b" 
+        self.client = Client(host=config.ollama_host)
+        self.model = config.model_paths["summarize"]
 
+    @cache_response(prefix="summarize", expire=CacheConfig.TEST_EXPIRE if "pytest" in sys.modules else CacheConfig.SUMMARIZE_EXPIRE)
     def summarize(self, text: str, options: dict = None) -> dict:
         try:
             # Set default options 
