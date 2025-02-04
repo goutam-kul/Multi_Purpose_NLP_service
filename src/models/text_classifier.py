@@ -1,15 +1,20 @@
 from ollama import Client
 import json
+import sys
+from src.cache.cache_manager import CacheConfig, cache_response
+from src.config.config import config
+
 
 class TextClassifier:
     def __init__(self):
-        self.client = Client(host="http://localhost:11434")
-        self.model = "llama3.2:3b"
+        self.client = Client(host=config.ollama_host)
+        self.model = config.model_paths["classify"]
         self.default_categories = [
             "Business", "Technology", "Politics", "Sports",
             "Entertainment", "Science", "Health", "Education"
         ]
         
+    @cache_response(prefix="classify", expire=CacheConfig.TEST_EXPIRE if "pytest" in sys.modules else CacheConfig.CLASSIFY_EXPIRE)
     def classify(self, text: str, options: dict = None) -> dict:
         """
         Classify text into predefined categories

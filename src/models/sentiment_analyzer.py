@@ -1,5 +1,6 @@
 from ollama import Client
 import json
+import sys
 from typing import Dict, Optional
 from src.exceptions.custom_exceptions import (
     NLPServiceException,
@@ -8,16 +9,16 @@ from src.exceptions.custom_exceptions import (
     ValidationError,
     JSONParsingError
 )
-
+from src.cache.cache_manager import cache_response, CacheConfig
+from src.config.config import config
 
 class SentimentAnalyzer:
     def __init__(self):
         try:
-            self.client = Client(host="http://localhost:11434")
-            self.model = "llama3.2:3b"  
+            self.client = Client(host=config.ollama_host)
+            self.model = config.model_paths["sentiment"]
         except Exception as e:
             raise ModelConnectionError(f"Failed to initialize Ollama client: {str(e)}")
-        
             
     def _validate_input(self, text: str) -> None:
         """Validate input text"""
@@ -28,7 +29,6 @@ class SentimentAnalyzer:
         if len(text.split()) == 0: # Catches whitespace "  "
             raise ValidationError("Input text cannot be whitespaces only")
         
-
     def _validate_response(self, result: Dict) -> None:
         """Validate model response"""
         required_fields = ["sentiment", "confidence", "explanation"]
@@ -42,7 +42,7 @@ class SentimentAnalyzer:
         if not isinstance(result['confidence'], (int, float)) or not 0<= result['confidence'] <=1:
             raise InvalidModelResponseError(f"Invalid confidence score : {result['confidence']}")
         
-
+    @cache_response(prefix="sentiment", expire=CacheConfig.TEST_EXPIRE if "pytest" in sys.modules else CacheConfig.SENTIMENT_EXPIRE)
     def analyze(self, text: str, options: Optional[Dict] = None) -> dict:
         try:
             # Validate input 
@@ -89,13 +89,6 @@ Analyze this text: "{text}"
 
                 # Validate the response
                 self._validate_response(result=result)
-                
-                # Validate the response
-                if result["sentiment"] not in ["POSITIVE", "NEGATIVE", "NEUTRAL"]:
-                    raise ValueError(f"Invalid sentiment value: {result['sentiment']}")
-                
-                if not isinstance(result["confidence"], (int, float)) or not 0 <= result["confidence"] <= 1:
-                    raise ValueError(f"Invalid confidence value: {result['confidence']}")
                 
                 # Format the final response
                 analysis = {
