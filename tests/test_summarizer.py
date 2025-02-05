@@ -1,10 +1,7 @@
-import pytest
-from fastapi.testclient import TestClient
-from src.main import app
+from tests.conftest import client
 
-client = TestClient(app)
 
-def test_empty_input():
+def test_empty_input(client):
     """Test empty input text"""
     response = client.post(
         "/api/v1/summarize",
@@ -15,7 +12,7 @@ def test_empty_input():
     assert "detail" in data
     assert any("length" in str(error).lower() for error in data["detail"])
 
-def test_too_short_input():
+def test_too_short_input(client):
     """Test text shorter than minimum required words"""
     response = client.post(
         "/api/v1/summarize",
@@ -25,7 +22,7 @@ def test_too_short_input():
     data = response.json()
     assert any("10 words" in str(error).lower() for error in data["detail"])
 
-def test_invalid_input_type():
+def test_invalid_input_type(client):
     """Test non-string input"""
     response = client.post(
         "/api/v1/summarize",
@@ -36,7 +33,7 @@ def test_invalid_input_type():
     assert "detail" in data
     assert any("string" in str(error).lower() for error in data["detail"])
 
-def test_successful_summarization():
+def test_successful_summarization(client):
     """Test successful summarization"""
     long_text = ("The quick brown fox jumps over the lazy dog. " * 10) + "This makes it long enough for summarization."
     response = client.post(
@@ -49,7 +46,7 @@ def test_successful_summarization():
     assert data["metadata"]["compression_ratio"] > 0
     assert len(data["summary"]) < len(long_text)
 
-def test_custom_max_length():
+def test_custom_max_length(client):
     """Test summarization with custom max_length"""
     long_text = "The quick brown fox jumps over the lazy dog. " * 10
     response = client.post(
@@ -63,7 +60,7 @@ def test_custom_max_length():
     data = response.json()
     assert len(data["summary"].split()) <= 50
 
-def test_abstractive_type():
+def test_abstractive_type(client):
     """Test abstractive summarization"""
     long_text = "The quick brown fox jumps over the lazy dog. " * 10
     response = client.post(
@@ -77,7 +74,7 @@ def test_abstractive_type():
     data = response.json()
     assert data["metadata"]["summary_type"] == "abstractive"
 
-def test_special_characters():
+def test_special_characters(client):
     """Test input with special characters"""
     text = ("The company's Q3 results showed a 15% increase in revenue. "
             "The CEO stated: \"We're very pleased with these results!\" "
@@ -91,7 +88,7 @@ def test_special_characters():
     assert "summary" in data
     assert "metadata" in data
 
-def test_multilingual():
+def test_multilingual(client):
     """Test multilingual input"""
     text = ("The international conference was a success. "
             "Representatives from 好市多 and Volkswagen attended. "

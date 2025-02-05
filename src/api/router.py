@@ -13,16 +13,47 @@ from typing import Dict, Any
 
 router = APIRouter()
 
-# Initialize models
-try: 
-    sentiment_analyzer = SentimentAnalyzer()
-    ner_analyzer = NERAnalyzer("ner_tinyllama_lora")
-    summarizer = TextSummarizer()
-    classifier = TextClassifier()
-except Exception as e:
-    print(f"Error initializing models: {str(e)}")
-    raise
+class  LazyModelLoader:
+    """Lazy loader for LLM to prevent loading all models at startup casusin OOM"""
+    def __init__(self):
+        self._sentiment = None
+        self._ner = None
+        self._summarizer = None
+        self._classifier = None
 
+    @property
+    def sentiment_analyzer(self):
+        if self._sentiment is None:
+            self._sentiment = SentimentAnalyzer()
+        return self._sentiment
+    
+    @property
+    def ner_analyzer(self):
+        if self._ner is None:
+            self._ner = NERAnalyzer()
+        return self._ner
+    
+    @property
+    def summarizer(self):
+        if self._summarizer is None:
+            self._summarizer = TextSummarizer()
+        return self._summarizer
+    
+    @property
+    def classifier(self):
+        if self._classifier is None:
+            self._classifier = TextClassifier()
+        return self._classifier
+
+    def cleanup(self):
+        """Clean up loaded models"""
+        self._sentiment = None
+        self._ner = None
+        self._summarizer = None
+        self._classifier = None
+
+# Initialize lazy loader
+models = LazyModelLoader()
 
 @router.get("/health")
 async def health_check():
@@ -31,7 +62,7 @@ async def health_check():
 @router.post("/sentiment", response_model=SentimentResponse)
 async def analyze_sentiment(input_data: SentimentRequest):
     try:
-        result = sentiment_analyzer.analyze(input_data.text, input_data.options)
+        result = models.sentiment_analyzer.analyze(input_data.text, input_data.options)
         return result
     except NLPServiceException as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -41,7 +72,7 @@ async def analyze_sentiment(input_data: SentimentRequest):
 @router.post("/ner", response_model=NERResponse)
 async def analyze_ner(input_data: NERRequest):
     try: 
-        result = ner_analyzer.analyze(input_data.text, input_data.options)
+        result = models.ner_analyzer.analyze(input_data.text, input_data.options)
         return result
     except NLPServiceException as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -53,7 +84,7 @@ async def analyze_ner(input_data: NERRequest):
 @router.post("/summarize", response_model=SummarizationResponse)
 async def summarize_text(request: SummarizationRequest):
     try:
-        result = summarizer.summarize(request.text, request.options)
+        result = models.summarizer.summarize(request.text, request.options)
         return result
     except NLPServiceException as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -64,7 +95,7 @@ async def summarize_text(request: SummarizationRequest):
 @router.post("/classify", response_model=TextClassificationResponse)
 async def classify_text(request: TextClassificationRequest):
     try:
-        result = classifier.classify(request.text, request.options)
+        result = models.classifier.classify(request.text, request.options)
         return result
     except NLPServiceException as e:
         raise HTTPException(status_code=400, detail=str(e))
