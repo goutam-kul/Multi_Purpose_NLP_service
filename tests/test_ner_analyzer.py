@@ -24,7 +24,7 @@ def test_whitespace_input(client):
 
 def test_too_long_input(client):
     """Test text exceeding max length"""
-    long_text = "a" * 2001  # Exceeds 2000 char limit
+    long_text = "a" * 1001  # Exceeds 2000 char limit
     response = client.post(
         "/api/v1/ner",
         json={"text": long_text}

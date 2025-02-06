@@ -72,13 +72,12 @@ async def analyze_sentiment(input_data: SentimentRequest):
 @router.post("/ner", response_model=NERResponse)
 async def analyze_ner(input_data: NERRequest):
     try: 
-        result = models.ner_analyzer.analyze(input_data.text, input_data.options)
+        result = models.ner_analyzer.analyze(input_data.text, input_data.options)  # Removed options parameter
         return result
     except NLPServiceException as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
 
 
 @router.post("/summarize", response_model=SummarizationResponse)

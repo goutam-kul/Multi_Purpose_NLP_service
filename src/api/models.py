@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator
 from typing import Optional, Dict, List, Literal, Any
 
 
@@ -51,71 +51,73 @@ class SentimentResponse(BaseModel):
 
 # --------------------------------------------------------------------------------------------------------------
 
-# NER Reponse
+# NER 
 class NERRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "text": "John works at Microsoft in Seattle",
-                "options": {"include_positions": True}
+                "options": {
+                    "extract_time": True,  # Extract time expressions
+                    "extract_numerical": True,  # Extract numbers and quantities
+                    "extract_email": True  # Extract email addresses
+                }
             }
         }
     )
     text: str = Field(
-        ..., 
+        ...,
         min_length=1,
-        max_length=2000,  # NER typically can handle longer texts
+        max_length=1000,
         description="Input text for entity recognition (max 2000 characters)"
     )
     options: Optional[Dict] = Field(
         default=None,
-        description="Optional parameters for NER analysis"
+        description="Optional features: extract_time, extract_numerical, extract_email"
     )
 
     @field_validator('text')
     @classmethod
     def validate_text(cls, v: str) -> str:
+        # Remove leading/trailing whitespace
         v = v.strip()
+        
+        # Check for empty or whitespace
         if not v:
             raise ValueError("Text cannot be empty or whitespace only")
-        # Additional validation could check for at least one word
+        
+        # Check minimum word count (for meaningful NER)
         if len(v.split()) < 2:
             raise ValueError("Text must contain at least two words for meaningful NER analysis")
+            
         return v
 
+class EntityModel(BaseModel):
+    text: str
+    type: str  
+    start: int
+    end: int
+    confidence: float = Field(default=0.85)  # Default confidence if not provided
 
 class NERResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "text": "John works at Microsoft in Seattle",
+                "text": "SpaceX is located in USA",
                 "entities": [
-                    {"text": "John", "type": "PERSON", "start": 0, "end": 4},
-                    {"text": "Microsoft", "type": "ORG", "start": 11, "end": 20},
-                    {"text": "Seattle", "type": "LOC", "start": 24, "end": 31}
+                    {
+                        "text": "USA",
+                        "type": "LOC",
+                        "start": 21,
+                        "end": 24,
+                        "confidence": 0.99
+                    }
                 ]
             }
         }
     )
-    text: str = Field(..., description="Original input text")
-    entities: List[Dict[str, Any]] = Field(
-        ...,
-        description="List of identified entities with their positions and types"
-    )
-
-    @field_validator('entities')
-    @classmethod
-    def validate_entities(cls, v: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        for entity in v:
-            required_fields = {'text', 'type', 'start', 'end'}
-            if not all(field in entity for field in required_fields):
-                raise ValueError(f"Entity must contain all required fields: {required_fields}")
-            if entity['start'] >= entity['end']:
-                raise ValueError("Entity end position must be greater than start position")
-            if not isinstance(entity['text'], str):
-                raise ValueError("Entity text must be a string")
-        return v
-
+    text: str
+    entities: List[EntityModel]
 #----------------------------------------------------------------------------------------------------------------
 
 # Summarization 
