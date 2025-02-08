@@ -1,10 +1,6 @@
-import pytest
-from fastapi.testclient import TestClient
-from src.main import app
+from tests.conftest import client
 
-client = TestClient(app)
-
-def test_empty_input():
+def test_empty_input(client):
     """Test empty input text"""
     response = client.post(
         "/api/v1/classify",
@@ -15,7 +11,7 @@ def test_empty_input():
     assert "detail" in data
     assert any("length" in str(error).lower() for error in data["detail"])
 
-def test_whitespace_input():
+def test_whitespace_input(client):
     """Test whitespace-only input"""
     response = client.post(
         "/api/v1/classify",
@@ -26,7 +22,7 @@ def test_whitespace_input():
     assert "detail" in data
     assert any("empty" in str(error).lower() for error in data["detail"])
 
-def test_invalid_input_type():
+def test_invalid_input_type(client):
     """Test non-string input"""
     response = client.post(
         "/api/v1/classify",
@@ -37,7 +33,7 @@ def test_invalid_input_type():
     assert "detail" in data
     assert any("string" in str(error).lower() for error in data["detail"])
 
-def test_successful_classification():
+def test_successful_classification(client):
     """Test successful classification"""
     test_text = "Tesla announces new electric vehicle battery technology"
     response = client.post(
@@ -58,7 +54,7 @@ def test_successful_classification():
         assert 0 <= category["confidence"] <= 1
     assert isinstance(data["explanation"], str)
 
-def test_custom_categories():
+def test_custom_categories(client):
     """Test classification with custom categories"""
     test_text = "Breaking news: Major earthquake hits Pacific region"
     response = client.post(
@@ -77,7 +73,7 @@ def test_custom_categories():
     assert data["primary_category"] in ["Natural Disaster", "Politics", "Sports"]
     assert all(k in data for k in ["text", "primary_category", "confidence", "all_categories", "explanation"])
     
-def test_multi_label_classification():
+def test_multi_label_classification(client):
     """Test multi-label classification"""
     test_text = "Apple announces new AI-powered iPhone features"
     response = client.post(
@@ -97,7 +93,7 @@ def test_multi_label_classification():
         assert "confidence" in category
         assert 0 <= category["confidence"] <= 1
 
-def test_confidence_scores():
+def test_confidence_scores(client):
     """Test confidence scores are valid"""
     test_text = "SpaceX launches new satellite into orbit"
     response = client.post(
@@ -113,7 +109,7 @@ def test_confidence_scores():
     for category in data["all_categories"]:
         assert 0 <= category["confidence"] <= 1
 
-def test_special_characters():
+def test_special_characters(client):
     """Test input with special characters"""
     test_text = "Company's Q3 profit rises 15% to $1.2B!"
     response = client.post(
@@ -124,7 +120,7 @@ def test_special_characters():
     assert response.status_code == 200
 
 
-def test_multilingual():
+def test_multilingual(client):
     """Test multilingual input"""
     test_text = "Toyota launches 新型車 in the global market"
     response = client.post(

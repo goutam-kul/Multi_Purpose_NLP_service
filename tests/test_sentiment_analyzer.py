@@ -1,10 +1,6 @@
-import pytest
-from fastapi.testclient import TestClient
-from src.main import app
+from tests.conftest import client
 
-client = TestClient(app)
-
-def test_empty_input():
+def test_empty_input(client):
     """Test empty input text"""
     response = client.post(
         "/api/v1/sentiment",
@@ -15,7 +11,7 @@ def test_empty_input():
     assert "detail" in data
     assert any("length" in str(error).lower() for error in data["detail"])
 
-def test_whitespace_input():
+def test_whitespace_input(client):
     """Test whitespace-only input"""
     response = client.post(
         "/api/v1/sentiment",
@@ -26,7 +22,7 @@ def test_whitespace_input():
     assert "detail" in data
     assert any("empty" in str(error).lower() for error in data["detail"])
 
-def test_too_long_input():
+def test_too_long_input(client):
     """Test text exceeding max length"""
     long_text = "a" * 1001  # Exceeds 1000 char limit
     response = client.post(
@@ -37,7 +33,7 @@ def test_too_long_input():
     data = response.json()
     assert any("length" in str(error).lower() for error in data["detail"])
 
-def test_invalid_input_type():
+def test_invalid_input_type(client):
     """Test non-string input"""
     response = client.post(
         "/api/v1/sentiment",
@@ -48,7 +44,7 @@ def test_invalid_input_type():
     assert "detail" in data
     assert any("string" in str(error).lower() for error in data["detail"])
 
-def test_successful_analysis():
+def test_successful_analysis(client):
     """Test successful sentiment analysis"""
     response = client.post(
         "/api/v1/sentiment",
@@ -56,13 +52,16 @@ def test_successful_analysis():
     )
     assert response.status_code == 200
     data = response.json()
-    assert "sentiment" in data
-    assert "confidence" in data
-    assert "explanation" in data
+    
+    # Group related assertions for better readability
+    required_fields = ["sentiment", "confidence", "explanation"]
+    for field in required_fields:
+        assert field in data, f"Missing field: {field}"
+        
     assert data["sentiment"] in ["POSITIVE", "NEGATIVE", "NEUTRAL"]
     assert 0 <= data["confidence"] <= 1
 
-def test_negative_sentiment():
+def test_negative_sentiment(client):
     """Test negative sentiment"""
     response = client.post(
         "/api/v1/sentiment",
@@ -73,7 +72,7 @@ def test_negative_sentiment():
     assert data["sentiment"] == "NEGATIVE"
     assert 0 <= data["confidence"] <= 1
 
-def test_neutral_sentiment():
+def test_neutral_sentiment(client):
     """Test neutral sentiment"""
     response = client.post(
         "/api/v1/sentiment",
@@ -84,7 +83,7 @@ def test_neutral_sentiment():
     assert data["sentiment"] in ["POSITIVE", "NEGATIVE", "NEUTRAL"]
     assert 0 <= data["confidence"] <= 1
 
-def test_special_characters():
+def test_special_characters(client):
     """Test input with special characters"""
     response = client.post(
         "/api/v1/sentiment",

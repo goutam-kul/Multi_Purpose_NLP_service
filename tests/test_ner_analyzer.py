@@ -1,10 +1,6 @@
-import pytest
-from fastapi.testclient import TestClient
-from src.main import app
+from tests.conftest import client
 
-client = TestClient(app)
-
-def test_empty_input():
+def test_empty_input(client):
     """Test empty input text"""
     response = client.post(
         "/api/v1/ner",
@@ -15,7 +11,7 @@ def test_empty_input():
     assert "detail" in data
     assert any("length" in str(error).lower() for error in data["detail"])
 
-def test_whitespace_input():
+def test_whitespace_input(client):
     """Test whitespace-only input"""
     response = client.post(
         "/api/v1/ner",
@@ -26,9 +22,9 @@ def test_whitespace_input():
     assert "detail" in data
     assert any("empty" in str(error).lower() for error in data["detail"])
 
-def test_too_long_input():
+def test_too_long_input(client):
     """Test text exceeding max length"""
-    long_text = "a" * 2001  # Exceeds 2000 char limit
+    long_text = "a" * 1001  # Exceeds 2000 char limit
     response = client.post(
         "/api/v1/ner",
         json={"text": long_text}
@@ -37,7 +33,7 @@ def test_too_long_input():
     data = response.json()
     assert any("length" in str(error).lower() for error in data["detail"])
 
-def test_single_word():
+def test_single_word(client):
     """Test text with single word"""
     response = client.post(
         "/api/v1/ner",
@@ -47,7 +43,7 @@ def test_single_word():
     data = response.json()
     assert any("two words" in str(error).lower() for error in data["detail"])
 
-def test_successful_ner():
+def test_successful_ner(client):
     """Test successful NER analysis"""
     response = client.post(
         "/api/v1/ner",
@@ -64,7 +60,7 @@ def test_successful_ner():
         assert entity["start"] < entity["end"]
         assert isinstance(entity["text"], str)
 
-def test_no_entities():
+def test_no_entities(client):
     """Test text with no entities"""
     response = client.post(
         "/api/v1/ner",
@@ -75,7 +71,7 @@ def test_no_entities():
     assert "entities" in data
     assert isinstance(data["entities"], list)
 
-def test_special_characters():
+def test_special_characters(client):
     """Test input with special characters"""
     response = client.post(
         "/api/v1/ner",
@@ -87,7 +83,7 @@ def test_special_characters():
     for entity in data["entities"]:
         assert all(k in entity for k in ["text", "type", "start", "end"])
 
-def test_multilingual():
+def test_multilingual(client):
     """Test multilingual input"""
     response = client.post(
         "/api/v1/ner",

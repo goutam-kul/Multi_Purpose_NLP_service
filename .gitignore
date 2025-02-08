@@ -136,6 +136,8 @@ ENV/
 env.bak/
 venv.bak/
 credentials.json
+positions.py
+Improvements_for_Sentiment.txt
 
 # Spyder project settings
 .spyderproject

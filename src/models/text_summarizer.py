@@ -3,6 +3,13 @@ import json
 import sys
 from src.cache.cache_manager import CacheConfig, cache_response
 from src.config.config import config
+from src.exceptions.custom_exceptions import (
+    NLPServiceException,
+    ModelConnectionError,
+    InvalidModelResponseError,
+    ValidationError,
+    JSONParsingError
+)
 
 
 class TextSummarizer:
@@ -55,6 +62,13 @@ Text to summarize: {text}
                 json_str = raw_text[start:end]
                 result = json.loads(json_str)
 
+                # Validate response
+                if not result.get("summary"):
+                    raise InvalidModelResponseError("Missing summary in model response")
+                
+                if not result.get("key_points"):
+                    raise InvalidModelResponseError("Missing Key points in model response")
+
                 # Calculate original text length
                 original_length = len(text.split())
                 summary_length = len(result['summary'].split())
@@ -75,9 +89,12 @@ Text to summarize: {text}
                 return analysis
             
             except json.JSONDecodeError as e:
-                print(f"JSON parsing error: {e}")
-                print(f"Attempted to parse: {json_str}")
-                raise Exception("Failed to parse model response as valid JSON")
+                raise JSONParsingError(f"Failed to parse model response: {str(e)}")
             
         except Exception as e:
-            raise Exception(f"Erro in text summarization: {str(e)}")
+            # If it's our custom exception re-raise it
+            if isinstance(e, (ValidationError, ModelConnectionError,
+                              InvalidModelResponseError, JSONParsingError)):
+                raise 
+            # Otherwise wrap it in a general error
+            raise NLPServiceException(f"Unexpected error in sentiment analysis: {str(e)}")

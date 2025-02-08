@@ -5,7 +5,7 @@
 """Defaul configuration values for NLP service"""
 
 MODEL_PATHS = {
-    "ner": "ner_tinyllama_lora",
+    "ner": "llama3.2:3b",
     "sentiment": "llama3.2:3b",
     "summarize": "llama3.2:3b",
     "classify": "llama3.2:3b"
