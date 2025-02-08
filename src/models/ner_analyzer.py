@@ -1,4 +1,3 @@
-# src/models/ner_analyzer.py
 from ollama import Client
 import json
 import sys
@@ -6,6 +5,13 @@ from src.exceptions.custom_exceptions import ModelConnectionError, JSONParsingEr
 from src.cache.cache_manager import cache_response, CacheConfig
 from src.config.config import config
 from typing import Optional, Dict
+from src.exceptions.custom_exceptions import (
+    NLPServiceException,
+    JSONParsingError,
+    ValidationError,
+    ModelConnectionError,
+    InvalidModelResponseError
+)
 
 class NERAnalyzer:
     def __init__(self):
@@ -45,102 +51,102 @@ class NERAnalyzer:
     @cache_response(prefix="ner", expire=CacheConfig.TEST_EXPIRE if "pytest" in sys.modules else CacheConfig.NER_EXPIRE)
     def analyze(self, text: str, options: Optional[Dict] = None) -> dict:
         try:
-            # Process options
-            extract_time = options.get('extract_time', False) if options else False
-            extract_numerical = options.get('extract_numerical', False) if options else False
-            extract_email = options.get('extract_email', False) if options else False
+            # Initialize options
+            if options is None:
+                options = {}
+                
+            # Base entity types we always want
+            allowed_types = {'PERSON', 'ORG', 'LOC'}
+            
+            # Add optional types based on options
+            if options.get('extract_time', False):
+                allowed_types.add('TIME')
+            if options.get('extract_numerical', False):
+                allowed_types.add('NUMBER')
+            if options.get('extract_email', False):
+                allowed_types.add('EMAIL')
 
-            # Build entity type instructions based on options
-            entity_types = """ENTITY DEFINITIONS:
-- PERSON: Names of people (e.g., John Smith)
-- ORG: Companies, institutions (e.g., Microsoft, NASA)
-- LOC: Locations, places (e.g., Seattle, Mount Everest)"""
+            # Build entity type definitions
+            entity_types = """ENTITY DEFINITIONS AND EXTRACTION RULES:
+    - PERSON: Full names of people only (e.g., John Smith, Mary Johnson)
+    - ORG: Organizations, companies, institutions, brands (e.g., Microsoft, NASA,)
+    - LOC: Places, cities, countries, locations (e.g., New York, Mount Everest, Japan)"""
 
-            if extract_time:
-                entity_types += "\n- TIME: Time expressions (e.g., 2:30 PM, morning, evening)"
-            if extract_numerical:
-                entity_types += "\n- NUMBER: Numerical values (e.g., 42, thousand, million)"
-            if extract_email:
-                entity_types += "\n- EMAIL: Email addresses (e.g., user@example.com)"
+            if options.get('extract_time', False):
+                entity_types += "\n- TIME: Time expressions, clock times, periods (e.g., 2:30 PM, morning, 9AM)"
+            if options.get('extract_numerical', False):
+                entity_types += "\n- NUMBER: Numerical values, quantities, measurements (e.g., 42, million, 12.5)"
+            if options.get('extract_email', False):
+                entity_types += "\n- EMAIL: Valid email addresses (e.g., user@example.com)"
 
-            prompt = f"""You are a Named Entity Recognition (NER) expert. Return ONLY a valid JSON object.
-CRITICAL RULES:
-1. ONLY extract entities that EXACTLY match the input text
-2. Double-check each entity against the original text before including
-3. Do NOT hallucinate or infer entities not present in text
-4. Count positions from 0, including spaces and punctuation
-5. Handle multilingual text (including non-ASCII characters) correctly
-6. Verify each entity's position matches the text exactly
+            prompt = f"""You are a precise Named Entity Recognition (NER) expert. Return ONLY a valid JSON object.
 
-{entity_types}
+    {entity_types}
+    - IMPORTANT: Remember you are an expert in finding NAME and ENTITIES from text, Extract them from the given text as precisely as possible.
+    
+    CRITICAL RULES:
+    0. Identify NAMES and ENTITIES correctly, DO NOT make Errors
+    1. ONLY extract entities from the types defined above
+    2. Each entity MUST include: text, type, start, end, confidence
+    3. Entity text MUST match the input text exactly
+    4. Positions (start/end) must be accurate character positions
+    5. Skip single pronouns, articles, and common words
+    6. Confidence should reflect certainty of entity type
+    7. Check entity types carefully for each entities 
+    8. DO NOT make mistakes like classifying EMAIL as ORG type entity 
 
-# Special handling for multilingual text:
-- Count UTF-8 characters properly
-- Include full character sequences for names/places
-- Preserve original text exactly as it appears
+    OUTPUT FORMAT:
+    {{
+        "entities": [
+            {{
+                "text": "exact matched text",
+                "type": "one of the defined types",
+                "start": exact_start_position,
+                "end": exact_end_position,
+                "confidence": confidence_score
+            }}
+        ]
+    }}
 
-VALIDATION STEPS:
-1. Extract potential entity
-2. Verify it exists in original text using exact string match
-3. Calculate start/end positions
-4. Validate positions by checking text[start:end] == entity
-5. Only include if ALL checks pass
-
-FORMAT:
-{{
-    "entities": [
-        {{
-            "text": "exact entity text",
-            "type": "PERSON/ORG/LOC/NUMBER/TIME/EMAIL",
-            "start": exact_start_position,
-            "end": exact_end_position,
-            "confidence": 0.0 to 1.0
-        }}
-    ]
-}}
-
-Text to analyze: "{text}"
-
-BEFORE RETURNING:
-1. Verify each entity exists in text
-2. Confirm positions by text[start:end]
-3. Remove any unverified entities
-"""
-            try:
-                response = self.client.generate(
-                    model=self.model,
-                    prompt=prompt,
-                    stream=False
-                )
-            except Exception as e:
-                raise ModelConnectionError(f"Failed to get model response: {str(e)}")
-
-            try:
-                # Extract JSON object
+    Text to analyze: "{text}"
+    """
+            # Get response from model
+            response = self.client.generate(
+                model=self.model,
+                prompt=prompt,
+                stream=False
+            )
+            try: 
+                # Process response
                 raw_text = response['response']
                 start = raw_text.find('{')
                 end = raw_text.rfind('}') + 1
-                print(f"Raw Reponse: {raw_text}")
+                
                 if start == -1 or end == 0:
                     raise JSONParsingError("No JSON object found in response")
+                    
+                result = json.loads(raw_text[start:end])
                 
-                json_str = raw_text[start:end]
-                result = json.loads(json_str)
-
-                # Validate entities 
-                result["entities"] = self._validate_entities(text=text, entities=result["entities"])
-
-                print(f"JSON: {json_str}")
-                # Format the final response
-                analysis = {
+                # Filter entities by allowed types
+                result["entities"] = [
+                    entity for entity in result["entities"]
+                    if entity.get('type') in allowed_types
+                ]
+                
+                # Validate entities
+                result["entities"] = self._validate_entities(text, result["entities"])
+                
+                return {
                     "text": text,
                     "entities": result["entities"]
                 }
-                
-                return analysis
-                
             except json.JSONDecodeError as e:
                 raise JSONParsingError(f"Failed to parse model response: {str(e)}")
             
         except Exception as e:
-            raise NLPServiceException(f"Error in NER analysis: {str(e)}")
+            # If it's our custom exception re-raise it
+            if isinstance(e, (ValidationError, ModelConnectionError,
+                              InvalidModelResponseError, JSONParsingError)):
+                raise 
+            # Otherwise wrap it in a general error
+            raise NLPServiceException(f"Unexpected error in sentiment analysis: {str(e)}")

@@ -3,6 +3,13 @@ import json
 import sys
 from src.cache.cache_manager import CacheConfig, cache_response
 from src.config.config import config
+from src.exceptions.custom_exceptions import (
+    NLPServiceException,
+    JSONParsingError,
+    ValidationError,
+    ModelConnectionError,
+    InvalidModelResponseError
+)
 
 
 class TextClassifier:
@@ -129,9 +136,13 @@ Text to classify: "{text}"
                 json_str = raw_text[start:end]
                 result = json.loads(json_str)
                 
+                
                 # Validate response
                 if not result.get("primary_category") in categories:
                     raise ValueError(f"Invalid primary category: {result['primary_category']}")
+                
+                if not result.get("explanation"):
+                    raise InvalidModelResponseError("Missing explanation in model response")
                     
                 for cat in result.get("all_categories", []):
                     if not cat.get("category") in categories:
@@ -155,9 +166,12 @@ Text to classify: "{text}"
                 return analysis
                 
             except json.JSONDecodeError as e:
-                print(f"JSON parsing error: {e}")
-                print(f"Attempted to parse: {json_str}")
-                raise Exception("Failed to parse model response as valid JSON")
+                raise JSONParsingError(f"Failed to parse model response: {str(e)}")
             
         except Exception as e:
-            raise Exception(f"Error in text classification: {str(e)}")
+            # If it's our custom exception re-raise it
+            if isinstance(e, (ValidationError, ModelConnectionError,
+                              InvalidModelResponseError, JSONParsingError)):
+                raise 
+            # Otherwise wrap it in a general error
+            raise NLPServiceException(f"Unexpected error in sentiment analysis: {str(e)}")

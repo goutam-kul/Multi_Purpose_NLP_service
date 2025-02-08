@@ -15,7 +15,7 @@ class SentimentRequest(BaseModel):
     text: str = Field(
         ..., 
         min_length=1,
-        max_length=1000,  # Reasonable length for sentiment analysis
+        max_length=500,  # Reasonable length for sentiment analysis
         description="Input text to analyze (max 1000 characters)"
     )
     options: Optional[Dict] = Field(
@@ -39,7 +39,15 @@ class SentimentResponse(BaseModel):
                 "text": "I really enjoyed this product!",
                 "sentiment": "POSITIVE",
                 "confidence": 0.95,
-                "explanation": "Strong positive sentiment expressed through 'really enjoyed'"
+                "explanation": "Strong positive sentiment expressed through 'really enjoyed'",
+                "metadata": {
+                    "sentiment_breakdown": {
+                        "positive_words": ["enjoyed"],
+                        "negative_words": [],
+                        "intensifiers": ["really"]
+                    },
+                    "processing_time_seconds": 20
+                }
             }
         }
     )
@@ -48,7 +56,7 @@ class SentimentResponse(BaseModel):
     sentiment: Literal["POSITIVE", "NEGATIVE", "NEUTRAL"]
     confidence: float = Field(..., ge=0.0, le=1.0)
     explanation: str
-
+    metadata: Optional[Dict] = None
 # --------------------------------------------------------------------------------------------------------------
 
 # NER 

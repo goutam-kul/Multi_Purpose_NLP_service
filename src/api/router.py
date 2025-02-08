@@ -62,7 +62,8 @@ async def health_check():
 @router.post("/sentiment", response_model=SentimentResponse)
 async def analyze_sentiment(input_data: SentimentRequest):
     try:
-        result = models.sentiment_analyzer.analyze(input_data.text, input_data.options)
+        cleaned_text = input_data.text.strip('"')
+        result = models.sentiment_analyzer.analyze(cleaned_text, input_data.options)
         return result
     except NLPServiceException as e:
         raise HTTPException(status_code=400, detail=str(e))

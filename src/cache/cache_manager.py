@@ -29,7 +29,8 @@ class CacheManager:
         Generate a unique cache key based on input parameters
         """
         # Create a string combining all parameters
-        key_parts = [text]
+        cleaned_text = text.strip().strip('"')
+        key_parts = [cleaned_text]
         if options:
             # Sort the options dict to ensure consistent keys
             key_parts.extend(f"{k}:{v}" for k, v in sorted(options.items()))
