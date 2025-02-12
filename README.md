@@ -1,5 +1,6 @@
 # Multi-Purpose NLP Services 🤖
-![Loading GIF](https://github.com/user-attachments/assets/f292109c-7987-45d4-adda-6658448616dc)
+https://github.com/user-attachments/assets/1503dea3-77d4-4e07-bb9f-31397358c169
+
 ## Project Overview
 A Natural Language Processing (NLP) service providing comprehensive text analysis capabilities through a REST-like API interface. Built with FastAPI and powered by advanced language models including **Llama3.2**, this service delivers robust and efficient NLP solutions.
 
