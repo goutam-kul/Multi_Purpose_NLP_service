@@ -39,9 +39,10 @@ FORMAT exactly like this (including the curly braces):
 RULES:
 1. Generate a {sum_type} summary
 2. Keep summary under {max_length} words
-3. Include 2-3 kep points
-4. Return ONLY the JSON object, nothing else
-5. Ensure proper JSON formatting with closing braces
+3. Max sure to use as many words as possible, while maintaining {max_length} words limit.
+4. Include 2-3 kep points
+5. Return ONLY the JSON object, nothing else
+6. Ensure proper JSON formatting with closing braces
 
 Text to summarize: {text}
 """
