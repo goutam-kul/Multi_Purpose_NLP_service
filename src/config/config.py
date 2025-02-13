@@ -12,18 +12,47 @@ from src.config.default import (
     OLLAMA_HOST,
     CACHE_TIMEOUT,
     API_CONFIG,
-    REDIS_CONFIG
+    REDIS_CONFIG, 
+    AVAILABLE_MODELS
 )
 
 class Config:
     """Config class for NLP service"""
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self):
+        if self._initialized:
+            return
+            
         self.model_paths = self._load_model_paths()
+        self.current_model = AVAILABLE_MODELS["llama"]  # Set default model
         self.ollama_host = self._get_env("OLLAMA_HOST", OLLAMA_HOST)
         self.cache_timeouts = self._load_cache_timeouts()
         self.redis = self._load_redis_config()
         self.api = self._load_api_config()
+        self._initialized = True
+
+    def set_current_model(self, model_name: str):
+        """Set current model for all services"""
+        if model_name in AVAILABLE_MODELS:
+            print(f"Setting model to: {AVAILABLE_MODELS[model_name]}")  # Debug
+            self.current_model = AVAILABLE_MODELS[model_name]
+            # Update all service models
+            for service in self.model_paths:
+                self.model_paths[service] = self.current_model
+            return True
+        return False
+    
+    def get_current_model(self) -> str:
+        """Get currently selected model"""
+        # print(f"Getting current model: {self.current_model}")  # Debug
+        return self.current_model
 
     def _get_env(self, key: str, default: Any) -> Any:
         """Get env vars with fallback to default"""

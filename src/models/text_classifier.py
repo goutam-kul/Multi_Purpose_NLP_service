@@ -36,6 +36,8 @@ class TextClassifier:
             dict: Contains predicted categories and confidence scores
         """
         try:
+            # Get the current model
+            self.model = config.get_current_model()
             if options is None:
                 options = {}
                 
@@ -160,7 +162,8 @@ Text to classify: "{text}"
                         }
                         for cat in result["all_categories"]
                     ],
-                    "explanation": result["explanation"]
+                    "explanation": result["explanation"],
+                    "model": self.model
                 }
                 
                 return analysis

@@ -1,15 +1,24 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-from src.api.models import SentimentRequest, SentimentResponse
-from src.api.models import NERRequest, NERResponse
-from src.api.models import SummarizationRequest, SummarizationResponse
-from src.api.models import TextClassificationRequest, TextClassificationResponse
+from src.api.models import  (
+    ModelSelection,
+    SentimentRequest,
+    SentimentResponse,
+    NERRequest, 
+    NERResponse, 
+    TextClassificationRequest,
+    TextClassificationResponse, 
+    SummarizationRequest, 
+    SummarizationResponse,
+)
 from src.models.sentiment_analyzer import SentimentAnalyzer
 from src.models.ner_analyzer import NERAnalyzer
 from src.models.text_summarizer import TextSummarizer
 from src.models.text_classifier import TextClassifier
 from src.exceptions.custom_exceptions import NLPServiceException
 from typing import Dict, Any
+from src.config.config import AVAILABLE_MODELS, config
+from src.cache.cache_manager import CacheManager
 
 router = APIRouter()
 
@@ -101,3 +110,26 @@ async def classify_text(request: TextClassificationRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+    
+@router.post("/set-model")
+async def set_model(selection: ModelSelection):
+    """Set the model to use for all NLP services"""
+    if config.set_current_model(selection.model_name):
+        print(f"Model changed to: {config.get_current_model()}")  # Debug
+        return {
+            "status": "success",
+            "message": f"Model set to {selection.model_name}",
+            "current_model": config.get_current_model()
+        }
+    raise HTTPException(
+        status_code=400,
+        detail=f"Invalid model name. Available models: {list(AVAILABLE_MODELS.keys())}"
+    )
+
+@router.get("/available-models")
+async def get_available_models():
+    """Get list of available models"""
+    return {
+        "models": AVAILABLE_MODELS,
+        "current_model": config.get_current_model()
+    }  

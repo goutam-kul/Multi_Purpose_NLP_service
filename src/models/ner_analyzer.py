@@ -43,7 +43,7 @@ class NERAnalyzer:
             if "confidence" not in entity or entity['confidence'] is None:
                 entity['confidence'] = 0.85
             else:
-                entity['confidence'] = round(entity['confidence'])
+                entity['confidence'] = round(entity['confidence'], 2)
             
             validated.append(entity)
         return validated
@@ -51,6 +51,9 @@ class NERAnalyzer:
     @cache_response(prefix="ner", expire=CacheConfig.TEST_EXPIRE if "pytest" in sys.modules else CacheConfig.NER_EXPIRE)
     def analyze(self, text: str, options: Optional[Dict] = None) -> dict:
         try:
+            current_model = config.get_current_model()
+            self.model = current_model
+            print(f'Using model: {self.model}')  # Debug 
             # Initialize options
             if options is None:
                 options = {}
@@ -116,6 +119,7 @@ class NERAnalyzer:
                 prompt=prompt,
                 stream=False
             )
+            print(f"Raw Reponse: {response}")
             try: 
                 # Process response
                 raw_text = response['response']
@@ -126,7 +130,9 @@ class NERAnalyzer:
                     raise JSONParsingError("No JSON object found in response")
                     
                 result = json.loads(raw_text[start:end])
-                
+
+                # print(f"Response: {result}")   # Debug
+
                 # Filter entities by allowed types
                 result["entities"] = [
                     entity for entity in result["entities"]
@@ -136,10 +142,15 @@ class NERAnalyzer:
                 # Validate entities
                 result["entities"] = self._validate_entities(text, result["entities"])
                 
-                return {
+                analysis =  {
                     "text": text,
-                    "entities": result["entities"]
+                    "entities": result["entities"],
+                    "model": self.model
                 }
+                print(f"Analysis: {analysis}")
+
+                return analysis
+            
             except json.JSONDecodeError as e:
                 raise JSONParsingError(f"Failed to parse model response: {str(e)}")
             

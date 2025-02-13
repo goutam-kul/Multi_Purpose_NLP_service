@@ -28,9 +28,13 @@ class CacheManager:
         """
         Generate a unique cache key based on input parameters
         """
+        # Get current model
+        current_model = config.get_current_model()
+        logging.info(f"Cache key Generation - Current Model: {current_model}")
         # Create a string combining all parameters
         cleaned_text = text.strip().strip('"')
-        key_parts = [cleaned_text]
+
+        key_parts = [current_model, cleaned_text]
         if options:
             # Sort the options dict to ensure consistent keys
             key_parts.extend(f"{k}:{v}" for k, v in sorted(options.items()))
@@ -39,8 +43,10 @@ class CacheManager:
         key_string = '|'.join(key_parts)
         hash_object = hashlib.md5(key_string.encode())
         hash_value = hash_object.hexdigest()
-        
-        return f"{prefix}:{hash_value}"
+
+        final_key = f"{prefix}:{current_model}:{hash_value}"
+        logging.info(f"Generated Cache Key: {final_key}")
+        return final_key
 
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
@@ -57,38 +63,46 @@ class CacheManager:
 def cache_response(prefix: str, expire: int = CacheConfig.DEFAULT_EXPIRE):
     """
     Decorator for caching NLP service responses
-    
-    Args:
-        prefix: Cache key prefix for the service
-        expire: Cache expiration time in seconds
     """
     def decorator(func):
         @wraps(func)
         def wrapper(self, text: str, options: Optional[dict] = None):
             try:
-                # Initialize cache manager if not already done
+                # Initialize cache manager
                 if not hasattr(self, '_cache_manager'):
                     self._cache_manager = CacheManager()
                 
+                # Get current model
+                current_model = config.get_current_model()
+                print(f"Cache decorator - Using model: {current_model}")  # Debug
+                
                 # Generate cache key
                 cache_key = self._cache_manager.generate_key(prefix, text, options)
+                print(f"Cache key generated: {cache_key}")  # Debug
                 
                 # Try to get from cache
                 cached_result = self._cache_manager.get(cache_key)
-                if cached_result is not None:
-                    logger.info(f"Cache hit for key: {cache_key}")
-                    return cached_result
                 
-                # If not in cache, call original function
+                if cached_result:  # Only check model if we have a cached result
+                    print(f"Found cached result for model: {cached_result.get('model', 'unknown')}")  # Debug
+                    if cached_result.get('model') == current_model:
+                        print("Cache hit - returning cached result")  # Debug
+                        return cached_result
+                
+                # If we get here, either no cache or different model
+                print("Cache miss - computing new result")  # Debug
                 result = func(self, text, options)
+                
+                # Add model to result if not present
+                if isinstance(result, dict):
+                    result['model'] = current_model
                 
                 # Store in cache
                 self._cache_manager.set(cache_key, result, expire)
-                logger.info(f"Stored in cache: {cache_key}")
-                
                 return result
+                
             except Exception as e:
-                logger.error(f"Cache error, falling back to original function: {str(e)}")
+                print(f"Cache error: {str(e)}")  # Debug
                 return func(self, text, options)
                 
         return wrapper
