@@ -47,6 +47,10 @@ class SentimentAnalyzer:
     def analyze(self, text: str, options: Optional[Dict] = None) -> dict:
         try:
             start_time = time.time()
+            # Get current model from config
+            current_model = config.get_current_model()
+            self.model = current_model
+            print(f'Using model: {self.model}')  # Debug 
 
             include_metadata = options.get('include_metadata', False) if options else False
             prompt = f"""You are an expert sentiment analyzer with advanced capabilities in detecting genuine emotions and sarcasm. Return ONLY a valid JSON object.
@@ -123,6 +127,7 @@ Analyze this text: "{text}"
                     prompt=prompt,
                     stream=False
                 )
+                print(f"Using Model: {self.model}")
             except Exception as e:
                 raise ModelConnectionError(f"Failed to get model response: {str(e)}")
                 
@@ -147,7 +152,8 @@ Analyze this text: "{text}"
                     "text": text,
                     "sentiment": result["sentiment"],
                     "confidence": round(float(result["confidence"]), 4),
-                    "explanation": str(result["explanation"])
+                    "explanation": str(result["explanation"]),
+                    "model": self.model
                 }
                 if include_metadata:
                     # Extract sentiment features
@@ -158,7 +164,7 @@ Analyze this text: "{text}"
                         "processing_time_seconds": processing_time
                     }
                     
-                    print(f"Resonse: {analysis}")
+                print(f"Resonse: {analysis}")
                 
                 return analysis
                 

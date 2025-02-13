@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator
 from typing import Optional, Dict, List, Literal, Any
 
+# Model selection
+class ModelSelection(BaseModel):
+    model_name: str
 
 # Sentiment 
 class SentimentRequest(BaseModel):
@@ -56,6 +59,7 @@ class SentimentResponse(BaseModel):
     sentiment: Literal["POSITIVE", "NEGATIVE", "NEUTRAL"]
     confidence: float = Field(..., ge=0.0, le=1.0)
     explanation: str
+    model: str
     metadata: Optional[Dict] = None
 # --------------------------------------------------------------------------------------------------------------
 
@@ -126,6 +130,7 @@ class NERResponse(BaseModel):
     )
     text: str
     entities: List[EntityModel]
+    model: str
 #----------------------------------------------------------------------------------------------------------------
 
 # Summarization 
@@ -157,14 +162,14 @@ class SummarizationResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "original_text": "Original long text...",
                 "summary": "Concise summary...",
                 "metadata": {
                     "original_length": 100,
                     "summary_length": 30,
                     "compression_ratio": 0.7
                 },
-                "key_points": ["Point 1", "Point 2", "Point 3"]
+                "key_points": ["Point 1", "Point 2", "Point 3"],
+                "model": "qwen2.5:3b"
             }
         }
     )
@@ -173,6 +178,7 @@ class SummarizationResponse(BaseModel):
     summary: str
     metadata: Dict
     key_points: List[str]
+    model: str
 
 #---------------------------------------------------------------------------------------------------------------
 
@@ -219,7 +225,8 @@ class TextClassificationResponse(BaseModel):
                     {"category": "Technology", "confidence": 0.85},
                     {"category": "Business", "confidence": 0.60}
                 ],
-                "explanation": "Focus on technological innovation in automotive industry"
+                "explanation": "Focus on technological innovation in automotive industry",
+                "model": "llama3.2:3b"
             }
         }
     )
@@ -229,3 +236,4 @@ class TextClassificationResponse(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     all_categories: List[CategoryResult]  # Using the new CategoryResult model
     explanation: str
+    model: str

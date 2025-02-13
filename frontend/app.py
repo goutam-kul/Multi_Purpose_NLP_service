@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import pandas as pd
 
 # API Base URL
 API_BASE = "http://localhost:8000/api/v1"
@@ -91,6 +92,34 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+st.markdown("""
+<div style='text-align: center; padding: 1.5rem 0 2.5rem 0;'>
+    <h1 style='
+        color: #64B5F6;
+        font-size: 2.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        background: linear-gradient(90deg, #64B5F6, #1E88E5);
+        -webkit-background-clip: text;
+    '>
+        🤖 Multi-Purpose NLP Services
+    </h1>
+    <div style='
+        max-width: 800px;
+        margin: 0 auto;
+        color: #B0BEC5;
+        font-size: 1.2rem;
+        line-height: 1.6;
+    '>
+        <p style='margin-bottom: 0.5rem;'>
+            Advanced Natural Language Processing solutions powered by state-of-the-art Ollama models.
+        </p>
+        <p style='font-size: 1.1rem; color: #90A4AE;'>
+            Sentiment Analysis • Named Entity Recognition • Text Classification • Summarization
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # API Health Check Section
 st.markdown("""
@@ -164,35 +193,52 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
+# Add this after the API status checks
+def get_available_models():
+    try:
+        response = requests.get(f"{API_BASE}/available-models")
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except:
+        return None
 
-st.markdown("""
-<div style='text-align: center; padding: 1.5rem 0 2.5rem 0;'>
-    <h1 style='
-        color: #64B5F6;
-        font-size: 2.5rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        background: linear-gradient(90deg, #64B5F6, #1E88E5);
-        -webkit-background-clip: text;
-    '>
-        🤖 Multi-Purpose NLP Services
-    </h1>
-    <div style='
-        max-width: 800px;
-        margin: 0 auto;
-        color: #B0BEC5;
-        font-size: 1.2rem;
-        line-height: 1.6;
-    '>
-        <p style='margin-bottom: 0.5rem;'>
-            Advanced Natural Language Processing solutions powered by state-of-the-art Ollama models.
-        </p>
-        <p style='font-size: 1.1rem; color: #90A4AE;'>
-            Sentiment Analysis • Named Entity Recognition • Text Classification • Summarization
-        </p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# Add model selector in the sidebar
+with st.sidebar:
+    st.markdown("""
+        <div style='padding: 1rem 0;'>
+            <h3 style='color: #1E88E5; font-size: 1.2rem; margin-bottom: 1rem;'>
+                🤖 Model Selection
+            </h3>
+        </div>
+    """, unsafe_allow_html=True)
+
+    models_info = get_available_models()
+    if models_info:
+        current_model = models_info.get('current_model')
+        available_models = models_info.get('models', {})
+        
+        selected_model = st.radio(
+            "Select Model",
+            options=list(available_models.keys()),
+            index=list(available_models.values()).index(current_model) if current_model else 0,
+            format_func=lambda x: f"{x} ({available_models[x]})"
+        )
+
+        if st.button("Apply Model", type="primary", use_container_width=True):
+            try:
+                response = requests.post(
+                    f"{API_BASE}/set-model",
+                    json={"model_name": selected_model}
+                )
+                if response.status_code == 200:
+                    st.success(f"Successfully switched to {selected_model}")
+                else:
+                    st.error("Failed to switch model")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    else:
+        st.error("Unable to fetch available models")
 
 # Documentation Section - after your service cards but before footer
 st.markdown("---")  # Add a divider
@@ -291,13 +337,18 @@ with col1:
                         emoji = {"POSITIVE": "😊", "NEGATIVE": "😔", "NEUTRAL": "😐"}
                         color = {"POSITIVE": "green", "NEGATIVE": "red", "NEUTRAL": "grey"}
                         
-                        # Main sentiment result
+                        # Main sentiment result with model info
                         st.markdown(f"""
                             <div style='background: rgba(17, 25, 40, 0.75); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.125);'>
                                 <h2 style='color: {color[result["sentiment"]]}; display: flex; align-items: center; gap: 0.5rem; margin: 0;'>
                                     {emoji[result["sentiment"]]} {result["sentiment"]} ({result["confidence"]:.2%})
                                 </h2>
                                 <p style='color: #E0E0E0; margin-top: 1rem;'>{result["explanation"]}</p>
+                                <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.125);'>
+                                    <span style='background: #1E88E5; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.9em;'>
+                                        Model: {result["model"]}
+                                    </span>
+                                </div>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -376,7 +427,7 @@ with col2:
         if ner_text:
             with st.spinner("Identifying entities..."):
                 try:
-                    # Only include options that are explicitly enabled
+                    # Prepare options
                     options = {}
                     if extract_time:
                         options["extract_time"] = True
@@ -385,7 +436,6 @@ with col2:
                     if extract_email:
                         options["extract_email"] = True
 
-                    # Only send options if any are enabled
                     payload = {"text": ner_text}
                     if options:
                         payload["options"] = options
@@ -394,48 +444,65 @@ with col2:
                         f"{API_BASE}/ner",
                         json=payload
                     )
-                    
+
                     if response.status_code == 200:
                         result = response.json()
                         entities = result["entities"]
-                        
+
                         if entities:
-                            # Group entities by type
-                            entity_groups = {}
-                            for entity in entities:
-                                entity_type = entity['type']
-                                if entity_type not in entity_groups:
-                                    entity_groups[entity_type] = []
-                                entity_groups[entity_type].append(entity)
+                            # Create a structured display of entities
+                            st.markdown("""
+                                <div style='background: rgba(17, 25, 40, 0.75); padding: 1rem; border-radius: 8px; margin-top: 1rem;'>
+                                    <h3 style='color: #64B5F6; margin-bottom: 10px;'>Identified Entities</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+
+                            # Display entities in a clean table format
+                            data = []
+                            type_icons = {
+                                'PERSON': '👤', 'ORG': '🏢', 'LOC': '📍',
+                                'TIME': '⏰', 'NUMBER': '🔢', 'EMAIL': '📧'
+                            }
                             
-                            # Display entities grouped by type
-                            for entity_type, entities_list in entity_groups.items():
-                                st.markdown(f"**{entity_type}**")
-                                for entity in entities_list:
-                                    confidence = entity['confidence'] * 100
-                                    st.markdown(f"* {entity['text']} ({confidence:.2f}%)")
+                            for entity in entities:
+                                icon = type_icons.get(entity['type'], '🔍')
+                                confidence = f"{entity['confidence']*100:.1f}%"
+                                data.append([
+                                    f"{icon} {entity['type']}", 
+                                    entity['text'],
+                                    f"{entity['start']}-{entity['end']}",
+                                    confidence
+                                ])
+                            
+                            df = pd.DataFrame(data, columns=['Type', 'Text', 'Position', 'Confidence'])
+                            st.dataframe(df, hide_index=True, width=1000)
                         else:
                             st.info("No entities found in the text.")
-                    else: 
-                        error_detail = response.json()
+                                            # Display model info in a simple banner
+                        st.markdown(f"""
+                            <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.125);'>
+                                <span style='background: #1E88E5; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.9em;'>
+                                    Model: {result["model"]}
+                                </span>
+                            </div>
+                        """, unsafe_allow_html=True)
 
+                    else:
+                        error_detail = response.json()
                         if response.status_code == 422:
                             error_msg = error_detail.get('detail', [{}])[0].get('msg', 'Validation Error')
                             st.error(f"Input Error: {error_msg}")
-
                         elif response.status_code == 500:
-                            st.error(f"Internal Server Error: The server encountered an error. Please try again later.")
-
-                        else: 
-                            st.error(f"⚠️Error: {response.status_code} - {response.text}")
+                            st.error("Internal Server Error: The server encountered an error. Please try again later.")
+                        else:
+                            st.error(f"⚠️ Error: {response.status_code} - {response.text}")
 
                 except requests.exceptions.Timeout:
                     st.error("⚠️ Request timed out. Please check if the server is responding.")
                 except Exception as e:
                     st.error(f"⚠️ An unexpected error occurred: {str(e)}")
-        else: 
-            st.warning("Please enter some text to perform NER")
-
+        else:
+            st.warning("Please enter some text to perform NER analysis.")
 # Create two more columns
 col3, col4 = st.columns(2)
 
@@ -497,6 +564,14 @@ with col3:
                         
                         st.markdown("**Analysis:**")
                         st.write(result['explanation'])
+                        
+                        st.markdown(f"""
+                            <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.125);'>
+                                <span style='background: #1E88E5; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.9em;'>
+                                    Model: {result["model"]}
+                                </span>
+                            </div>
+                        """, unsafe_allow_html=True)
                     else: 
                         error_detail = response.json()
 
@@ -573,6 +648,14 @@ with col4:
                                 st.metric("Summary Length", f"{result['metadata']['summary_length']} words")
                             with col3:
                                 st.metric("Compression", f"{result['metadata']['compression_ratio']:.1%}")
+                            # Display model
+                            st.markdown(f"""
+                                <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.125);'>
+                                    <span style='background: #1E88E5; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.9em;'>
+                                        Model: {result["model"]}
+                                    </span>
+                                </div>
+                            """, unsafe_allow_html=True)
                         else: 
                             error_detail = response.json()
 

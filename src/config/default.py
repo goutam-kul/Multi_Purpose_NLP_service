@@ -4,11 +4,18 @@
 # Values here can be overriden by env. values
 """Defaul configuration values for NLP service"""
 
+AVAILABLE_MODELS = {
+    "llama": "llama3.2:3b",
+    "gemma": "gemma2:2b",
+    "qwen": "qwen2.5:3b",
+    "phi3": "phi3:3.8b"
+}
+
 MODEL_PATHS = {
-    "ner": "llama3.2:3b",
-    "sentiment": "llama3.2:3b",
-    "summarize": "llama3.2:3b",
-    "classify": "llama3.2:3b"
+    "ner": AVAILABLE_MODELS["llama"],
+    "sentiment": AVAILABLE_MODELS["llama"],
+    "summarize": AVAILABLE_MODELS["llama"],
+    "classify": AVAILABLE_MODELS["llama"],
 }
 
 OLLAMA_HOST = "http://localhost:11434"
