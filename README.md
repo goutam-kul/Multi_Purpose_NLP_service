@@ -96,7 +96,7 @@ A Natural Language Processing (NLP) service providing comprehensive text analysi
 
 ## Technical Stack
 - **Backend**: FastAPI, Python 3.8+
-- **Models**: Llama3.2, TinyLlama
+- **Models**: Llama3.2, TinyLlama, Phi3, Gemma2, Qwen2.5
 - **Caching**: Redis
 - **UI**: Streamlit
 - **Testing**: Pytest, Locust
