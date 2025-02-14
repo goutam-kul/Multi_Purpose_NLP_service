@@ -2,9 +2,11 @@ import streamlit as st
 import requests
 import json
 import pandas as pd
+import os
 
 # API Base URL
-API_BASE = "http://localhost:8000/api/v1"
+API_BASE = os.getenv("API_URL", "http://backend:8000") + "/api/v1"
+OLLAMA_API = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
 
 # Page config
 st.set_page_config(
@@ -170,11 +172,11 @@ except Exception:
     api_healthy = False
 
 try:
-    ollama_response = requests.get("http://localhost:11434/", timeout=10)
+    ollama_response = requests.get(OLLAMA_API, timeout=10)
     ollama_healthy = ollama_response.status_code == 200
 except Exception:
     ollama_healthy = False
-
+    
 # Create status indicators
 st.markdown(f"""
     <div class="status-container">
