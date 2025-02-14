@@ -20,18 +20,24 @@ jobs:
     - name: Install security tools
       run: |
         python -m pip install --upgrade pip
-        pip install bandit safety
-        
+        pip install bandit
+
     - name: Run Bandit security scan
       run: |
-        bandit -r ./src -f json -o bandit-report.json || true
-
-    - name: Run Safety check
+        bandit -r ./src -ll -ii -f json -o bandit-report.json || true
+        
+    - name: Basic dependency check
       run: |
-        # Run safety without authentication, using the DB from PyPI
-        safety check -r requirements.backend.txt --full-report || true
-        safety check -r requirements.frontend.txt --full-report || true
+        pip install pip-audit
+        pip-audit -r requirements.backend.txt || true
+        pip-audit -r requirements.frontend.txt || true
 
+    - name: Upload security reports
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: security-reports
+        path: bandit-report.json
 
   test:
     runs-on: ubuntu-latest
