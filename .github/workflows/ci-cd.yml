@@ -34,8 +34,9 @@ jobs:
         image: redis
         ports:
           - 6379:6379
+        env:
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         options: >-
-          --command redis-server --requirepass testing123
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
@@ -61,7 +62,7 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          REDIS_PASSWORD: testing123
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           
       - name: Upload coverage
         uses: codecov/codecov-action@v3
