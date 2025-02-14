@@ -15,7 +15,7 @@ jobs:
       - name: Python security check
         run: |
           pip install safety
-          safety check -r requirements.backend.txt
+          safety scan -r requirements.backend.txt
         
       - name: Scan dependencies
         uses: snyk/actions/python@master
@@ -35,6 +35,7 @@ jobs:
         ports:
           - 6379:6379
         options: >-
+          --command redis-server --requirepass testing123
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
@@ -60,6 +61,7 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          REDIS_PASSWORD: testing123
           
       - name: Upload coverage
         uses: codecov/codecov-action@v3

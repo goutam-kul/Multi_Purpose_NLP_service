@@ -1,8 +1,7 @@
-fastapi
-uvicorn
-python-dotenv
-redis
-ollama
-pytest
-pytest
+fastapi==0.115.8
+uvicorn==0.34.0
+python-dotenv==1.0.1
+redis==5.2.1
+ollama==0.4.7
+pytest==8.3.4
 pytest-cov
