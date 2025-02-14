@@ -35,11 +35,12 @@ jobs:
         ports:
           - 6379:6379
         options: >-
+          --requirepass test_password
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        command: redis-server --requirepass test_password
+
 
     steps:
       - uses: actions/checkout@v2
