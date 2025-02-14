@@ -4,3 +4,5 @@ python-dotenv
 redis
 ollama
 pytest
+pytest
+pytest-cov
