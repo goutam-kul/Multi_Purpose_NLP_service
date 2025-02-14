@@ -13,7 +13,9 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Python security check
-        uses: pyupio/safety-db@2.0.0
+        run: |
+          pip install safety
+          safety check -r requirements.backend.txt
         
       - name: Scan dependencies
         uses: snyk/actions/python@master
