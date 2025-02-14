@@ -36,18 +36,17 @@ jobs:
     runs-on: ubuntu-latest
     services:
       redis:
-        image: redis:alpine
+        image: bitnami/redis:latest  # Using bitnami image as it supports env vars for auth
         ports:
           - 6379:6379
+        env:
+          REDIS_PASSWORD: test_password  # Set redis password
         # Fix for Redis container options
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "redis-cli -a test_password ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        # Set Redis password through environment variable
-        env:
-          REDIS_ARGS: '--requirepass Say1234@'
     steps:
       - uses: actions/checkout@v2
       
@@ -68,7 +67,7 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          REDIS_PASSWORD: Say1234@
+          REDIS_PASSWORD: test_password
           
       - name: Upload coverage
         uses: codecov/codecov-action@v3
