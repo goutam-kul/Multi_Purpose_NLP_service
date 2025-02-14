@@ -32,13 +32,6 @@ jobs:
           pip-audit -r requirements.backend.txt || true
           pip-audit -r requirements.frontend.txt || true
 
-      - name: Upload security reports
-        uses: actions/upload-artifact@v2
-        if: always()
-        with:
-          name: security-reports
-          path: bandit-report.json
-
   test:
     runs-on: ubuntu-latest
     services:
