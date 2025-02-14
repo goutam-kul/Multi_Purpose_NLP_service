@@ -45,13 +45,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        env:
-          REDIS_PASSWORD: test_password
-        # Use redis command with password
-        command: >-
-          redis-server
+          --entrypoint redis-server
           --requirepass test_password
-
 
     steps:
       - uses: actions/checkout@v2
