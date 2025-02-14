@@ -15,7 +15,7 @@ jobs:
       - name: Python security check
         run: |
           pip install safety && safety auth
-          safety check -r requirements.backend.txt --key $ {{ secrets.SAFETY_API_KEY }}
+          safety scan -r requirements.backend.txt --key ${{ secrets.SAFETY_API_KEY }}
           
       - name: Scan dependencies
         uses: snyk/actions/python@master
