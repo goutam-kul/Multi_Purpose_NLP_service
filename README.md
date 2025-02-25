@@ -68,6 +68,12 @@ A Natural Language Processing (NLP) service providing comprehensive text analysi
   - OpenAPI specifications
   - Usage examples
 
+### Deployement Setup
+- **Containerization and CI/CD**
+  - Multi container Microservice approach
+  - microservices: frontend, backend, redis
+  - CI/CD using github actions 
+
 ## Future Work
 
 ### 1. Model Enhancements
@@ -90,12 +96,11 @@ A Natural Language Processing (NLP) service providing comprehensive text analysi
 
 ### 4. Infrastructure
 - [ ] Kubernetes deployment configurations
-- [ ] CI/CD pipeline setup
 - [ ] Monitoring dashboard
 - [ ] Auto-scaling implementation
 
 ## Technical Stack
-- **Backend**: FastAPI, Python 3.8+
+- **Backend**: FastAPI, Python 3.10+
 - **Models**: Llama3.2, TinyLlama, Phi3, Gemma2, Qwen2.5
 - **Caching**: Redis
 - **UI**: Streamlit
